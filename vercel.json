@@ -1,23 +1,19 @@
 {
-  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
   "functions": {
     "api/gas.js": {
       "runtime": "nodejs20.x"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/gas",
-      "dest": "/api/gas.js"
+      "source": "/api/gas",
+      "destination": "/api/gas"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }
-
