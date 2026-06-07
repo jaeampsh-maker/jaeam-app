@@ -1,45 +1,50 @@
 // Vercel Serverless Function - GAS 프록시
-// 위치: 프로젝트 루트의 /api/gas.js
-
-const GAS_URL = process.env.GAS_URL || "";
-
 module.exports = async function handler(req, res) {
-  // CORS
+  // ── CORS 헤더 (모든 요청에 적용) ──
   res.setHeader("Access-Control-Allow-Origin",  "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Max-Age",       "86400");
 
-  if (req.method === "OPTIONS") return res.status(200).end();
+  // Preflight 요청 처리
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
+  const GAS_URL = process.env.GAS_URL;
   if (!GAS_URL) {
-    return res.status(500).json({ ok: false, msg: "GAS_URL 환경변수가 설정되지 않았습니다." });
+    return res.status(500).json({ ok: false, msg: "GAS_URL 환경변수 미설정" });
   }
 
   try {
-    let response, text;
+    let gasRes, text;
 
     if (req.method === "GET") {
       const params = new URLSearchParams(req.query).toString();
       const url    = params ? `${GAS_URL}?${params}` : GAS_URL;
-      response = await fetch(url, { redirect: "follow" });
-      text     = await response.text();
+      gasRes = await fetch(url, { redirect: "follow" });
+      text   = await gasRes.text();
 
     } else if (req.method === "POST") {
-      response = await fetch(GAS_URL, {
+      const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      gasRes = await fetch(GAS_URL, {
         method:  "POST",
         redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body:    JSON.stringify(req.body),
+        body:    body,
       });
-      text = await response.text();
+      text = await gasRes.text();
 
     } else {
       return res.status(405).json({ ok: false, msg: "Method Not Allowed" });
     }
 
+    // JSON 파싱 시도
     try {
-      return res.status(200).json(JSON.parse(text));
+      const data = JSON.parse(text);
+      return res.status(200).json(data);
     } catch {
+      // JSON이 아니면 그냥 텍스트로
       return res.status(200).send(text);
     }
 
