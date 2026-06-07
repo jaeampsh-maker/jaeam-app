@@ -76,7 +76,7 @@ const VER_KEY     = "jaeam_ver";
 const loadPhotos  = () => { try{ return JSON.parse(localStorage.getItem("fw_photos")||"[]"); }catch{ return []; } };
 // API 호출 - 항상 Vercel /api/gas 프록시 경유 (CORS 완전 해결)
 // gasUrl 인자는 무시하고 항상 /api/gas 프록시만 사용
-const PROXY = "/api/gas";
+const PROXY = "https://jaeam-app.vercel.app/api/gas";
 
 const apiGet = async (_url, p={}) => {
   try {
