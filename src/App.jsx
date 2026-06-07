@@ -74,26 +74,30 @@ const APP_VERSION = "v1";
 const ROLE_KEY    = "jaeam_role";
 const VER_KEY     = "jaeam_ver";
 const loadPhotos  = () => { try{ return JSON.parse(localStorage.getItem("fw_photos")||"[]"); }catch{ return []; } };
-// API 호출 - Vercel /api/gas 프록시 경유 (CORS 완전 해결)
+// API 호출 - 항상 Vercel /api/gas 프록시 경유 (CORS 완전 해결)
+// gasUrl 인자는 무시하고 항상 /api/gas 프록시만 사용
 const PROXY = "/api/gas";
 
-const apiGet = async (gasUrl, p={}) => {
+const apiGet = async (_url, p={}) => {
   try {
-    // Vercel 프록시 경유
     const q = Object.entries(p).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join("&");
     const r = await fetch(`${PROXY}?${q}`);
-    return await r.json();
+    const text = await r.text();
+    try { return JSON.parse(text); }
+    catch { return {ok:false, msg:"응답 파싱 오류: "+text.slice(0,80)}; }
   } catch(e) { return {ok:false, msg:e.message}; }
 };
 
-const apiPost = async (gasUrl, b={}) => {
+const apiPost = async (_url, b={}) => {
   try {
     const r = await fetch(PROXY, {
       method:  "POST",
       headers: {"Content-Type":"application/json"},
       body:    JSON.stringify(b),
     });
-    return await r.json();
+    const text = await r.text();
+    try { return JSON.parse(text); }
+    catch { return {ok:false, msg:"응답 파싱 오류: "+text.slice(0,80)}; }
   } catch(e) { return {ok:false, msg:e.message}; }
 };
 const SI = {background:"#ffffff",border:"1px solid #e8e8e8",borderRadius:4,padding:"0 12px",color:"#0d0d0d",fontSize:13,width:"100%",height:"40px",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color .12s"};
