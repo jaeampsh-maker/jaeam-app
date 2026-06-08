@@ -1,18 +1,15 @@
-<!DOCTYPE html>
-<html lang="ko">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#0f1015" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>재암산업 방화마감</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #ffffff; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
+// src/index.js - PWA 서비스워커 등록 포함
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { register } from './serviceWorkerRegistration';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// PWA 서비스워커 등록 (오프라인 지원)
+register();
