@@ -1,15 +1,90 @@
-// src/index.js - PWA 서비스워커 등록 포함
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import { register } from './serviceWorkerRegistration';
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#e8450a" />
+    <meta name="description" content="재암산업 방화마감 통합 관리 앱 - 방화보드 재단 계산, 재단요청, 시공실적 관리" />
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+    <!-- PWA 설정 -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icon-192.png" />
 
-// PWA 서비스워커 등록 (오프라인 지원)
-register();
+    <!-- iOS PWA 설정 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="재암산업" />
+
+    <!-- Android PWA -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- OG 태그 -->
+    <meta property="og:title" content="재암산업 방화마감 통합 관리 앱" />
+    <meta property="og:description" content="방화보드 재단 계산부터 시공실적까지 현장 업무 통합 관리" />
+    <meta property="og:type" content="website" />
+
+    <title>재암산업</title>
+
+    <style>
+      /* 스플래시 화면 */
+      #splash {
+        position: fixed; inset: 0;
+        background: #ffffff;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column;
+        z-index: 9999;
+        transition: opacity 0.5s ease;
+      }
+      #splash.hide { opacity: 0; pointer-events: none; }
+      #splash-logo {
+        width: 80px; height: 80px;
+        background: #e8450a; border-radius: 20px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 36px; font-weight: 900; color: white;
+        font-family: Georgia, serif;
+        margin-bottom: 16px;
+      }
+      #splash-title {
+        font-size: 22px; font-weight: 900; color: #0d0d0d;
+        font-family: 'Noto Sans KR', sans-serif;
+        letter-spacing: -0.5px;
+      }
+      #splash-sub {
+        font-size: 11px; color: #aaa;
+        margin-top: 6px;
+        font-family: 'Noto Sans KR', sans-serif;
+      }
+      #splash-bar {
+        width: 48px; height: 3px;
+        background: #e8450a; border-radius: 2px;
+        margin: 14px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>재암산업 앱을 사용하려면 JavaScript를 활성화하세요.</noscript>
+
+    <!-- 스플래시 화면 -->
+    <div id="splash">
+      <div id="splash-logo">J</div>
+      <div id="splash-title">재암산업</div>
+      <div id="splash-bar"></div>
+      <div id="splash-sub">방화마감 통합 관리 시스템</div>
+    </div>
+
+    <div id="root"></div>
+
+    <script>
+      // 스플래시 1초 후 숨기기
+      window.addEventListener("load", function() {
+        setTimeout(function() {
+          var splash = document.getElementById("splash");
+          if (splash) {
+            splash.classList.add("hide");
+            setTimeout(function() { splash.remove(); }, 500);
+          }
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>
