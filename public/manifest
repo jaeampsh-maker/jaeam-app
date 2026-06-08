@@ -1,0 +1,43 @@
+{
+  "short_name": "재암산업",
+  "name": "재암산업 방화마감 통합 관리 앱",
+  "description": "방화보드 재단 계산부터 재단요청, 시공실적, 공사사진까지 현장 업무를 하나의 앱으로 통합 관리",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#e8450a",
+  "background_color": "#ffffff",
+  "lang": "ko",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "재단 계산기",
+      "short_name": "계산기",
+      "description": "방화보드 재단 계산",
+      "url": "/?menu=calc",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "재단 요청서",
+      "short_name": "요청서",
+      "description": "재단 요청 현황 조회",
+      "url": "/?menu=request",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
