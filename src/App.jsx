@@ -1686,31 +1686,37 @@ export default function App(){
   const [synced,   setSynced]   = useState(false);
 
   // 앱 시작 시 구글 시트에서 데이터 로드
+  // 앱 시작 시 자동 연동 (직원들은 설정 불필요)
   useEffect(()=>{
-    const local = loadReqs();
-    setReqs(local);
-    if(apiUrl && !synced){
-      // 구글 시트에서 최신 데이터 가져오기
-      apiGet(apiUrl, {action:"getReqs"}).then(res=>{
-        if(res.ok && res.reqs && res.reqs.length > 0){
- setReqs(res.reqs);
- saveReqs(res.reqs);
+    // 로컬 데이터 먼저 표시
+    setReqs(loadReqs());
+    // PROXY를 통해 구글 시트 자동 로드 (apiUrl 설정 여부 무관)
+    const autoLoad = async () => {
+      try {
+        // 재단요청 데이터 로드
+        const r1 = await apiGet("", {action:"getReqs"});
+        if(r1.ok && r1.reqs && r1.reqs.length > 0){
+          setReqs(r1.reqs); saveReqs(r1.reqs);
         }
-      }).catch(()=>{});
-      // 체크/설치 상태도 로드
-      apiGet(apiUrl, {action:"getChecks"}).then(res=>{
-        if(res.ok){
- if(res.checks) try{ localStorage.setItem("fw_checks", JSON.stringify(res.checks)); }catch{}
- if(res.installed){ setInstalled(res.installed); try{ localStorage.setItem("fw_installed", JSON.stringify(res.installed)); }catch{} }
+        // 체크/설치 상태 로드
+        const r2 = await apiGet("", {action:"getChecks"});
+        if(r2.ok){
+          if(r2.checks) try{ localStorage.setItem("fw_checks", JSON.stringify(r2.checks)); }catch{}
+          if(r2.installed){ setInstalled(r2.installed); try{ localStorage.setItem("fw_installed", JSON.stringify(r2.installed)); }catch{} }
         }
-      }).catch(()=>{});
-      // 작업로그도 로드
-      apiGet(apiUrl, {action:"getLogs"}).then(res=>{
-        if(res.ok && res.logs) try{ localStorage.setItem("jaeam_logs", JSON.stringify(res.logs)); }catch{}
-      }).catch(()=>{});
-      setSynced(true);
-    }
-  },[apiUrl]);
+        // 작업로그 로드
+        const r3 = await apiGet("", {action:"getLogs"});
+        if(r3.ok && r3.logs) try{ localStorage.setItem("jaeam_logs", JSON.stringify(r3.logs)); }catch{}
+        // 자동 연동 성공 시 apiUrl 설정
+        if(!apiUrl){ setApiUrl("auto"); try{ localStorage.setItem(API_KEY,"auto"); }catch{} }
+        setSynced(true);
+      } catch(e) {
+        // 오프라인이거나 연동 미설정 → 로컬 데이터 사용
+      }
+    };
+    autoLoad();
+  },[]);
+
 
   // 차열재 state
   const [iItems, setIItems] = useState([]);
