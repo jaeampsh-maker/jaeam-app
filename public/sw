@@ -1,0 +1,100 @@
+// ================================================================
+// 재암산업 앱 Service Worker
+// 오프라인 캐싱 + 백그라운드 동기화
+// ================================================================
+
+const CACHE_NAME = "jaeam-v1";
+const STATIC_ASSETS = [
+  "/",
+  "/index.html",
+  "/static/js/main.chunk.js",
+  "/static/js/bundle.js",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png"
+];
+
+// ── 설치: 핵심 파일 캐시 ─────────────────────────────────────────
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("[SW] 캐시 저장 중...");
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn("[SW] 일부 캐시 실패 (무시):", err);
+      });
+    })
+  );
+  self.skipWaiting();
+});
+
+// ── 활성화: 이전 캐시 삭제 ──────────────────────────────────────
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// ── 요청 처리: 네트워크 우선, 실패 시 캐시 ──────────────────────
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // API 요청은 캐시하지 않음 (항상 네트워크)
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  // GET 요청만 캐시
+  if (request.method !== "GET") return;
+
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        // 성공한 응답을 캐시에 저장
+        if (response && response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // 네트워크 실패 시 캐시에서 반환
+        return caches.match(request).then((cached) => {
+          if (cached) return cached;
+          // HTML 요청이면 index.html 반환 (SPA 라우팅)
+          if (request.headers.get("accept")?.includes("text/html")) {
+            return caches.match("/index.html");
+          }
+        });
+      })
+  );
+});
+
+// ── 푸시 알림 (공지사항 알림) ────────────────────────────────────
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(data.title || "재암산업", {
+      body:    data.body || "새 알림이 있습니다.",
+      icon:    "/icon-192.png",
+      badge:   "/icon-192.png",
+      vibrate: [200, 100, 200],
+      data:    data,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow("/"));
+});
