@@ -479,7 +479,7 @@ function PhotoScreen({apiUrl,onBack}){
  <div style={{fontSize:13,fontWeight:700,color:teal,marginBottom:2}}>사진 선택 또는 촬영</div>
  <div style={{fontSize:11,color:"#888888"}}>여러 장 동시 선택 가능 · 자동 압축 적용</div>
  </div>
- <input type="file" accept="image/*" multiple capture="environment" onChange={onFiles} style={{display:"none"}}/>
+ <input type="file" accept="image/*" multiple onChange={onFiles} style={{display:"none"}}/>
  </label>
 
  
