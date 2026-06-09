@@ -652,7 +652,7 @@ function NoticeScreen({apiUrl,onBack}){
     setLoading(false);
   };
   const save=async()=>{
-    if(!form.title||!apiUrl) return;
+    if(!form.title) return;
     setSaving(true);
     try{await apiPost("",{action:"addNotice",...form,date:todayStr()});setForm({title:"",content:"",important:false});setShowForm(false);load();}catch{}
     setSaving(false);
@@ -669,7 +669,7 @@ function NoticeScreen({apiUrl,onBack}){
  </div>
         </div>
       </div>
-      {!apiUrl&&<div style={{padding:"20px",background:"#f56e1a18",border:"1px solid #f56e1a44",margin:"16px",borderRadius:12,fontSize:13,color:"#f56e1a"}}>⚙️ 구글 연동 설정을 먼저 해주세요 (홈 → 연동 설정)</div>}
+      {false&&<div style={{padding:"20px",background:"#f56e1a18",border:"1px solid #f56e1a44",margin:"16px",borderRadius:12,fontSize:13,color:"#f56e1a"}}>⚙️ 구글 연동 설정을 먼저 해주세요 (홈 → 연동 설정)</div>}
       {showForm&&<div style={{padding:"14px 16px",background:"#ffffff",borderBottom:"1px solid #2d3245"}}>
         <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="제목"
  style={{width:"100%",background:"#fafafa",border:"1px solid #2d3245",borderRadius:8,padding:"10px",color:"#0d0d0d",fontSize:13,marginBottom:8,boxSizing:"border-box",outline:"none"}}/>
@@ -723,7 +723,7 @@ function ScheduleScreen({apiUrl,onBack}){
     setLoading(false);
   };
   const save=async()=>{
-    if(!form.title||!apiUrl) return;
+    if(!form.title) return;
     setSaving(true);
     try{
       const body={action:"addEvent",...form};
@@ -759,7 +759,7 @@ function ScheduleScreen({apiUrl,onBack}){
  </div>
         </div>
       </div>
-      {!apiUrl&&<div style={{padding:"20px",background:"#f56e1a18",border:"1px solid #f56e1a44",margin:"16px",borderRadius:12,fontSize:13,color:"#f56e1a"}}>⚙️ 구글 연동 설정을 먼저 해주세요</div>}
+      {false&&<div style={{padding:"20px",background:"#f56e1a18",border:"1px solid #f56e1a44",margin:"16px",borderRadius:12,fontSize:13,color:"#f56e1a"}}>⚙️ 구글 연동 설정을 먼저 해주세요</div>}
       {showForm&&<div style={{padding:"14px 16px",background:"#ffffff",borderBottom:"1px solid #2d3245"}}>
         <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="일정 제목"
  style={{width:"100%",background:"#fafafa",border:"1px solid #2d3245",borderRadius:8,padding:"10px",color:"#0d0d0d",fontSize:13,marginBottom:8,boxSizing:"border-box",outline:"none"}}/>
@@ -771,7 +771,7 @@ function ScheduleScreen({apiUrl,onBack}){
       </div>}
       <div style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
         {loading&&<div style={{textAlign:"center",padding:"40px",color:"#888888"}}>⏳ 불러오는 중...</div>}
-        {!loading&&!events.length&&apiUrl&&<div style={{textAlign:"center",padding:"60px 20px",color:"#888888"}}><div style={{fontSize:40,marginBottom:12}}>📅</div><div style={{fontSize:13}}>일정이 없습니다</div></div>}
+        {!loading&&!events.length&&<div style={{textAlign:"center",padding:"60px 20px",color:"#888888"}}><div style={{fontSize:40,marginBottom:12}}>📅</div><div style={{fontSize:13}}>일정이 없습니다</div></div>}
         {dates.map(date=>(
  <div key={date} style={{marginBottom:14}}>
  <div style={{fontSize:12,fontWeight:800,color:"#5b21b6",marginBottom:6,paddingLeft:2}}>{date.replace(/-/g,".")}</div>
@@ -805,11 +805,24 @@ function PlanScreen({apiUrl,onBack}){
   useEffect(()=>{load();},[]);
   const load=async()=>{
     setLoading(true);
-    try{const r=await apiGet("",{action:"getPlans",date:today});if(r.ok)setPlans(r.data||[]);}catch{}
+    try{
+      // 전체 불러온 후 앱에서 날짜 필터링 (날짜 형식 차이 대응)
+      const r=await apiGet("",{action:"getPlans"});
+      if(r.ok){
+        const todayNorm=today.replace(/-/g,""); // "2026-06-10" → "20260610"
+        const filtered=(r.data||[]).filter(p=>{
+          const d=String(p["날짜"]||p["date"]||"");
+          const dNorm=d.replace(/-/g,"");
+          return dNorm===todayNorm || d===today;
+        });
+        // 필터 결과 없으면 전체 표시 (오늘 일정이 없는 경우)
+        setPlans(filtered.length>0 ? filtered : (r.data||[]));
+      }
+    }catch(e){console.error(e);}
     setLoading(false);
   };
   const save=async()=>{
-    if(!form.site||!form.work||!apiUrl) return;
+    if(!form.site||!form.work) return;
     setSaving(true);
     try{await apiPost("",{action:"addPlan",...form,date:today,status:"예정"});setForm({site:"",work:"",worker:"",memo:""});setShowForm(false);load();}catch{}
     setSaving(false);
@@ -828,7 +841,7 @@ function PlanScreen({apiUrl,onBack}){
  <div style={{fontSize:16,fontWeight:800,color:"#0d0d0d",letterSpacing:-.3}}>금일계획</div><div style={{fontSize:11,color:"#888888"}}>{today.replace(/-/g,".")}</div></div>
         <button onClick={()=>setShowForm(p=>!p)} style={{marginLeft:"auto",background:"#ff9a3c",border:"none",borderRadius:9,padding:"6px 14px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>＋ 계획</button>
       </div>
-      {!apiUrl&&<div style={{padding:"20px",background:"#f56e1a18",border:"1px solid #f56e1a44",margin:"16px",borderRadius:12,fontSize:13,color:"#f56e1a"}}>⚙️ 구글 연동 설정을 먼저 해주세요</div>}
+      {false&&<div style={{padding:"20px",background:"#f56e1a18",border:"1px solid #f56e1a44",margin:"16px",borderRadius:12,fontSize:13,color:"#f56e1a"}}>⚙️ 구글 연동 설정을 먼저 해주세요</div>}
       {showForm&&<div style={{padding:"14px 16px",background:"#ffffff",borderBottom:"1px solid #2d3245"}}>
         <div style={{display:"flex",gap:8,marginBottom:8}}>
  <input value={form.site} onChange={e=>setForm(p=>({...p,site:e.target.value}))} placeholder="현장명" style={{flex:1,background:"#fafafa",border:"1px solid #2d3245",borderRadius:8,padding:"9px",color:"#0d0d0d",fontSize:13,outline:"none"}}/>
@@ -839,7 +852,7 @@ function PlanScreen({apiUrl,onBack}){
       </div>}
       <div style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
         {loading&&<div style={{textAlign:"center",padding:"40px",color:"#888888"}}>⏳ 불러오는 중...</div>}
-        {!loading&&!plans.length&&apiUrl&&<div style={{textAlign:"center",padding:"60px 20px",color:"#888888"}}><div style={{fontSize:40,marginBottom:12}}>📝</div><div style={{fontSize:13}}>오늘 계획이 없습니다</div></div>}
+        {!loading&&!plans.length&&<div style={{textAlign:"center",padding:"60px 20px",color:"#888888"}}><div style={{fontSize:40,marginBottom:12}}>📝</div><div style={{fontSize:13}}>오늘 계획이 없습니다</div></div>}
         
         {plans.length>0&&(
  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:14}}>
