@@ -358,9 +358,8 @@ function PhotoScreen({apiUrl,onBack}){
   useEffect(()=>{if(tab==="list") loadPhotos();},[tab]);
 
   const loadPhotos=async()=>{
-    if(!apiUrl) return;
     setLoading(true);
-    try{const r=await apiGet(apiUrl,{action:"getPhotos"});if(r.ok)setPhotos(r.data||[]);}catch{}
+    try{const r=await apiGet("",{action:"getPhotos"});if(r.ok)setPhotos(r.data||[]);}catch{}
     setLoading(false);
   };
 
@@ -401,7 +400,7 @@ function PhotoScreen({apiUrl,onBack}){
   const upload=async()=>{
     if(!form.site){setResult({ok:false,msg:"현장명을 입력해주세요."});return;}
     if(!previews.length){setResult({ok:false,msg:"사진을 선택해주세요."});return;}
-    if(!apiUrl){setResult({ok:false,msg:"구글 연동 설정을 먼저 해주세요."});return;}
+    
     setUploading(true);setResult(null);
     let ok=0;
     for(let i=0;i<previews.length;i++){
@@ -411,7 +410,7 @@ function PhotoScreen({apiUrl,onBack}){
       const ts=Date.now();
       const fileName=`${form.site}_${form.date}_${ts}.jpg`;
       try{
-        const r=await apiPost(apiUrl,{
+        const r=await apiPost("",{
  action:"uploadPhoto",
  site:form.site,
  date:form.date,
@@ -647,15 +646,15 @@ function NoticeScreen({apiUrl,onBack}){
 
   useEffect(()=>{load();},[]);
   const load=async()=>{
-    if(!apiUrl){setNotices([]);return;}
+    
     setLoading(true);
-    try{const r=await apiGet(apiUrl,{action:"getNotices"});if(r.ok)setNotices(r.data||[]);}catch{}
+    try{const r=await apiGet("",{action:"getNotices"});if(r.ok)setNotices(r.data||[]);}catch{}
     setLoading(false);
   };
   const save=async()=>{
     if(!form.title||!apiUrl) return;
     setSaving(true);
-    try{await apiPost(apiUrl,{action:"addNotice",...form,date:todayStr()});setForm({title:"",content:"",important:false});setShowForm(false);load();}catch{}
+    try{await apiPost("",{action:"addNotice",...form,date:todayStr()});setForm({title:"",content:"",important:false});setShowForm(false);load();}catch{}
     setSaving(false);
   };
 
@@ -714,12 +713,11 @@ function ScheduleScreen({apiUrl,onBack}){
   
   useEffect(()=>{load();},[]);
   const load=async()=>{
-    if(!apiUrl) return;
     setLoading(true);
     try{
       const start=new Date(); start.setDate(1);
       const end=new Date(); end.setMonth(end.getMonth()+2);
-      const r=await apiGet(apiUrl,{action:"getCalendar",start:start.toISOString(),end:end.toISOString()});
+      const r=await apiGet("",{action:"getCalendar",start:start.toISOString(),end:end.toISOString()});
       if(r.ok) setEvents(r.data||[]);
     }catch{}
     setLoading(false);
@@ -731,14 +729,14 @@ function ScheduleScreen({apiUrl,onBack}){
       const body={action:"addEvent",...form};
       if(form.allDay){body.start=form.start;delete body.end;}
       else{body.start=form.start+"T09:00:00";body.end=(form.end||form.start)+"T18:00:00";}
-      await apiPost(apiUrl,body);
+      await apiPost("",body);
       setShowForm(false);setForm({title:"",start:todayStr(),end:"",allDay:true,location:"",description:""});load();
     }catch{}
     setSaving(false);
   };
   const delEv=async(id)=>{
     if(!window.confirm("삭제할까요?")) return;
-    await apiPost(apiUrl,{action:"deleteEvent",eventId:id});load();
+    await apiPost("",{action:"deleteEvent",eventId:id});load();
   };
 
   // 날짜별 그룹
@@ -806,19 +804,18 @@ function PlanScreen({apiUrl,onBack}){
 
   useEffect(()=>{load();},[]);
   const load=async()=>{
-    if(!apiUrl) return;
     setLoading(true);
-    try{const r=await apiGet(apiUrl,{action:"getPlans",date:today});if(r.ok)setPlans(r.data||[]);}catch{}
+    try{const r=await apiGet("",{action:"getPlans",date:today});if(r.ok)setPlans(r.data||[]);}catch{}
     setLoading(false);
   };
   const save=async()=>{
     if(!form.site||!form.work||!apiUrl) return;
     setSaving(true);
-    try{await apiPost(apiUrl,{action:"addPlan",...form,date:today,status:"예정"});setForm({site:"",work:"",worker:"",memo:""});setShowForm(false);load();}catch{}
+    try{await apiPost("",{action:"addPlan",...form,date:today,status:"예정"});setForm({site:"",work:"",worker:"",memo:""});setShowForm(false);load();}catch{}
     setSaving(false);
   };
   const updateStatus=async(id,status)=>{
-    try{await apiPost(apiUrl,{action:"updatePlan",id,status});load();}catch{}
+    try{await apiPost("",{action:"updatePlan",id,status});load();}catch{}
   };
 
   const statusColor={예정:"#888888",진행중:"#1a56cc",완료:"#0a7a50",보류:"#e04545"};
@@ -1208,7 +1205,7 @@ function PerfScreen({reqs,installed,onBack,apiUrl,isAdmin}){
     setSyncing(true);setSyncMsg("동기화 중...");
     try{
       const rows=instReqs.map(r=>({id:r.id,date:r.date,site:r.site||"",m2:parseFloat(r.m2||0).toFixed(4),boards:r.boards||0,note:r.note||"",at:(r.at||"").replace("T"," ").slice(0,16)}));
-      const res=await apiPost(apiUrl,{action:"syncPerf",rows});
+      const res=await apiPost("",{action:"syncPerf",rows});
       setSyncMsg(res.ok?"✅ 구글 시트 동기화 완료!":"❌ 동기화 실패");
     }catch{setSyncMsg("❌ 오류가 발생했습니다");}
     setSyncing(false);setTimeout(()=>setSyncMsg(""),4000);
