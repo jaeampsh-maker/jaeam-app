@@ -718,8 +718,9 @@ function ScheduleScreen({apiUrl,onBack}){
       const start=new Date(); start.setDate(1);
       const end=new Date(); end.setMonth(end.getMonth()+2);
       const r=await apiGet("",{action:"getCalendar",start:start.toISOString(),end:end.toISOString()});
-      if(r.ok) setEvents(r.data||[]);
-    }catch{}
+      if(r.ok && r.data) setEvents(r.data||[]);
+      else if(!r.ok) console.warn("[일정표] GAS 오류:", r.msg);
+    }catch(e){ console.error("[일정표] 오류:", e); }
     setLoading(false);
   };
   const save=async()=>{
