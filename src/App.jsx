@@ -705,38 +705,69 @@ function NoticeScreen({apiUrl,onBack}){
 // ── 일정표 화면 ──────────────────────────────────────────
 function ScheduleScreen({apiUrl,onBack}){
   const today = todayStr();
-  const [events,    setEvents]    = useState([]);
-  const [loading,   setLoading]   = useState(false);
-  const [curYear,   setCurYear]   = useState(new Date().getFullYear());
-  const [curMonth,  setCurMonth]  = useState(new Date().getMonth()); // 0-indexed
-  const [selDate,   setSelDate]   = useState(today);
-  const [showForm,  setShowForm]  = useState(false);
-  const [showDetail,setShowDetail]= useState(null);
-  const [saving,    setSaving]    = useState(false);
-  const [form,      setForm]      = useState({title:"",start:today,end:"",allDay:true,location:"",description:""});
 
-  useEffect(()=>{ load(); },[]);
+  // 이번 주 월요일 기준으로 시작
+  const getWeekStart = (d) => {
+    const dt = new Date(d);
+    const day = dt.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // 월요일 기준
+    dt.setDate(dt.getDate() + diff);
+    return dt.toISOString().slice(0,10);
+  };
+
+  const [weekStart,  setWeekStart]  = useState(getWeekStart(today));
+  const [events,     setEvents]     = useState([]);
+  const [loading,    setLoading]    = useState(false);
+  const [selDate,    setSelDate]    = useState(today);
+  const [showForm,   setShowForm]   = useState(false);
+  const [showDetail, setShowDetail] = useState(null);
+  const [saving,     setSaving]     = useState(false);
+  const [form,       setForm]       = useState({title:"",start:today,end:"",allDay:true,location:"",description:""});
+
+  // 주간 날짜 배열 생성 (월~일)
+  const getWeekDays = (start) => {
+    const days = [];
+    for(let i=0; i<7; i++){
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      days.push(d.toISOString().slice(0,10));
+    }
+    return days;
+  };
+  const weekDays = getWeekDays(weekStart);
+  const weekEnd  = weekDays[6];
+
+  const prevWeek = () => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() - 7);
+    setWeekStart(d.toISOString().slice(0,10));
+  };
+  const nextWeek = () => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 7);
+    setWeekStart(d.toISOString().slice(0,10));
+  };
+  const goToday = () => {
+    setWeekStart(getWeekStart(today));
+    setSelDate(today);
+  };
+
+  useEffect(()=>{ load(); },[weekStart]);
 
   const load = async() => {
     setLoading(true);
     try{
-      const start = new Date(curYear, curMonth-1, 1);
-      const end   = new Date(curYear, curMonth+2, 0);
+      const start = new Date(weekStart);
+      start.setDate(start.getDate() - 7);
+      const end = new Date(weekEnd);
+      end.setDate(end.getDate() + 7);
       const r = await apiGet("", {action:"getCalendar", start:start.toISOString(), end:end.toISOString()});
       if(r.ok && r.data) setEvents(r.data||[]);
-    }catch(e){ console.error("[일정표]", e); }
+    }catch(e){ console.error("[일정표]",e); }
     setLoading(false);
   };
 
-  // 달력 이동 시 데이터 재로드
-  useEffect(()=>{ load(); },[curYear, curMonth]);
-
-  // 달력 날짜 계산
-  const firstDay = new Date(curYear, curMonth, 1).getDay(); // 0=일
-  const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
-  const prevDays = new Date(curYear, curMonth, 0).getDate();
-
-  // 이벤트 날짜별 맵
+  // 날짜별 이벤트 맵
   const evByDate = {};
   events.forEach(ev => {
     const d = (ev.start||"").slice(0,10);
@@ -744,27 +775,9 @@ function ScheduleScreen({apiUrl,onBack}){
     evByDate[d].push(ev);
   });
 
-  // 선택된 날짜의 일정
   const selEvents = evByDate[selDate] || [];
-
-  const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
-  const DAYS   = ["일","월","화","수","목","금","토"];
-  const EV_COLORS = ["#e8450a","#1a56cc","#0a7a50","#5b21b6","#a16207","#9f1239"];
-
-  const prevMonth = () => {
-    if(curMonth===0){ setCurMonth(11); setCurYear(y=>y-1); }
-    else setCurMonth(m=>m-1);
-  };
-  const nextMonth = () => {
-    if(curMonth===11){ setCurMonth(0); setCurYear(y=>y+1); }
-    else setCurMonth(m=>m+1);
-  };
-  const goToday = () => {
-    const now = new Date();
-    setCurYear(now.getFullYear());
-    setCurMonth(now.getMonth());
-    setSelDate(today);
-  };
+  const DAY_KO  = ["일","월","화","수","목","금","토"];
+  const EV_COLORS = ["#e8450a","#1a56cc","#0a7a50","#5b21b6","#a16207","#9f1239","#0284c7"];
 
   const saveEvent = async() => {
     if(!form.title) return;
@@ -773,7 +786,11 @@ function ScheduleScreen({apiUrl,onBack}){
       const body = {...form, action:"addEvent"};
       if(form.allDay) body.end = form.start;
       const r = await apiPost("", body);
-      if(r.ok){ setShowForm(false); setForm({title:"",start:selDate,end:"",allDay:true,location:"",description:""}); load(); }
+      if(r.ok){
+        setShowForm(false);
+        setForm({title:"",start:selDate,end:"",allDay:true,location:"",description:""});
+        load();
+      }
     }catch{}
     setSaving(false);
   };
@@ -781,28 +798,22 @@ function ScheduleScreen({apiUrl,onBack}){
   const deleteEvent = async(eventId) => {
     try{
       await apiPost("", {action:"deleteEvent", eventId});
-      setShowDetail(null); load();
+      setShowDetail(null);
+      load();
     }catch{}
   };
 
-  // ── 달력 셀 생성 ────────────────────────────────────────────────
-  const cells = [];
-  // 이전 달 날짜
-  for(let i=firstDay-1; i>=0; i--){
-    cells.push({day:prevDays-i, curMon:false, date:null});
-  }
-  // 이번 달 날짜
-  for(let d=1; d<=daysInMonth; d++){
-    const mm = String(curMonth+1).padStart(2,"0");
-    const dd = String(d).padStart(2,"0");
-    const date = `${curYear}-${mm}-${dd}`;
-    cells.push({day:d, curMon:true, date});
-  }
-  // 다음 달 날짜 (6주 맞추기)
-  const remain = 42 - cells.length;
-  for(let d=1; d<=remain; d++){
-    cells.push({day:d, curMon:false, date:null});
-  }
+  // 월/일 포맷
+  const fmtMD = (d) => {
+    const dt = new Date(d);
+    return `${dt.getMonth()+1}/${dt.getDate()}`;
+  };
+
+  // 주간 범위 표시
+  const weekLabel = `${fmtMD(weekStart)} ~ ${fmtMD(weekEnd)}`;
+
+  // 오늘이 현재 주에 포함되는지
+  const isCurrentWeek = weekDays.includes(today);
 
   return(
     <div style={{minHeight:"100vh",background:"#ffffff",fontFamily:"Noto Sans KR,sans-serif",display:"flex",flexDirection:"column"}}>
@@ -815,120 +826,181 @@ function ScheduleScreen({apiUrl,onBack}){
             <div style={{fontSize:9,fontWeight:600,color:"#e8450a",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Schedule</div>
             <div style={{fontSize:16,fontWeight:800,color:"#0d0d0d",letterSpacing:-.3}}>일정표</div>
           </div>
-          <button onClick={goToday} style={{background:"#f5f5f5",border:"1px solid #e8e8e8",borderRadius:4,padding:"5px 10px",fontSize:11,fontWeight:600,color:"#555",cursor:"pointer",fontFamily:"inherit"}}>오늘</button>
+          {!isCurrentWeek&&(
+            <button onClick={goToday} style={{background:"#f5f5f5",border:"1px solid #e8e8e8",borderRadius:4,padding:"5px 10px",fontSize:11,fontWeight:600,color:"#555",cursor:"pointer",fontFamily:"inherit"}}>오늘</button>
+          )}
           <button onClick={()=>{setForm({title:"",start:selDate,end:"",allDay:true,location:"",description:""});setShowForm(true);}}
-            style={{background:"#e8450a",border:"none",borderRadius:4,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:20,cursor:"pointer",flexShrink:0}}>+</button>
+            style={{background:"#e8450a",border:"none",borderRadius:4,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:22,cursor:"pointer",flexShrink:0,lineHeight:1}}>+</button>
         </div>
       </div>
 
-      {/* 월 네비게이션 */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px",borderBottom:"1px solid #f0f0f0"}}>
-        <button onClick={prevMonth} style={{background:"none",border:"1px solid #e8e8e8",borderRadius:4,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14,color:"#444"}}>‹</button>
-        <div style={{fontSize:18,fontWeight:800,color:"#0d0d0d",letterSpacing:-.3}}>
-          {curYear}년 {MONTHS[curMonth]}
+      {/* 주간 네비게이션 */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",background:"#fafafa",borderBottom:"1px solid #f0f0f0"}}>
+        <button onClick={prevWeek} style={{background:"#ffffff",border:"1px solid #e8e8e8",borderRadius:6,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:16,color:"#444"}}>‹</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#0d0d0d"}}>{weekLabel}</div>
+          {isCurrentWeek&&<div style={{fontSize:10,color:"#e8450a",fontWeight:600,marginTop:1}}>이번 주</div>}
         </div>
-        <button onClick={nextMonth} style={{background:"none",border:"1px solid #e8e8e8",borderRadius:4,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14,color:"#444"}}>›</button>
+        <button onClick={nextWeek} style={{background:"#ffffff",border:"1px solid #e8e8e8",borderRadius:6,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:16,color:"#444"}}>›</button>
       </div>
 
-      {/* 요일 헤더 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"#fafafa",borderBottom:"1px solid #f0f0f0"}}>
-        {DAYS.map((d,i)=>(
-          <div key={d} style={{padding:"8px 0",textAlign:"center",fontSize:11,fontWeight:700,color:i===0?"#e8450a":i===6?"#1a56cc":"#888"}}>
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* 달력 그리드 */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",flex:1,borderLeft:"1px solid #f0f0f0"}}>
-        {cells.map((cell,idx)=>{
-          const isToday   = cell.date === today;
-          const isSel     = cell.date === selDate;
-          const hasEvents = cell.date && evByDate[cell.date]?.length > 0;
-          const dotEvents = evByDate[cell.date] || [];
-          const col       = idx % 7;
+      {/* 주간 요일 슬라이드 */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"2px solid #f0f0f0",background:"#ffffff"}}>
+        {weekDays.map((date,i)=>{
+          const dt       = new Date(date);
+          const dayNum   = dt.getDay();
+          const isTod    = date === today;
+          const isSel    = date === selDate;
+          const hasEv    = (evByDate[date]||[]).length > 0;
+          const evCount  = (evByDate[date]||[]).length;
           return(
-            <div key={idx} onClick={()=>cell.date&&setSelDate(cell.date)}
-              style={{
-                borderRight:"1px solid #f0f0f0", borderBottom:"1px solid #f0f0f0",
-                padding:"4px 3px", minHeight:56, cursor:cell.date?"pointer":"default",
-                background: isSel?"#fff3ee": isToday?"#fafafa":"#ffffff",
-                position:"relative"
-              }}>
-              {/* 날짜 숫자 */}
+            <div key={date} onClick={()=>setSelDate(date)}
+              style={{padding:"8px 2px 6px",textAlign:"center",cursor:"pointer",
+                borderBottom:`2px solid ${isSel?"#e8450a":"transparent"}`,
+                marginBottom:-2, transition:"border .15s"}}>
+              {/* 요일 */}
+              <div style={{fontSize:10,fontWeight:600,color:dayNum===0?"#e8450a":dayNum===6?"#1a56cc":"#aaa",marginBottom:4}}>
+                {DAY_KO[dayNum]}
+              </div>
+              {/* 날짜 원 */}
               <div style={{
-                width:22, height:22, borderRadius:"50%",
-                background: isToday?"#e8450a": isSel?"#e8450a22":"transparent",
+                width:30, height:30, borderRadius:"50%",
+                background:isTod?"#e8450a":isSel?"#fff3ee":"transparent",
+                border:isSel&&!isTod?"1.5px solid #e8450a":"none",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:12, fontWeight:isToday||isSel?700:400,
-                color: isToday?"#fff": !cell.curMon?"#ccc": col===0?"#e8450a": col===6?"#1a56cc":"#0d0d0d",
-                margin:"0 auto 2px"
-              }}>{cell.day}</div>
-              {/* 이벤트 표시 */}
-              {dotEvents.slice(0,2).map((ev,ei)=>(
-                <div key={ei} style={{
-                  fontSize:9, fontWeight:600, lineHeight:1.3,
-                  color:"#fff", background:EV_COLORS[ei%EV_COLORS.length],
-                  borderRadius:2, padding:"1px 3px", marginBottom:1,
-                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"
-                }}>{ev.title}</div>
-              ))}
-              {dotEvents.length>2&&(
-                <div style={{fontSize:8,color:"#e8450a",textAlign:"right",paddingRight:2}}>+{dotEvents.length-2}</div>
+                margin:"0 auto 4px",
+              }}>
+                <span style={{
+                  fontSize:14, fontWeight:isTod||isSel?700:400,
+                  color:isTod?"#fff":dayNum===0?"#e8450a":dayNum===6?"#1a56cc":"#0d0d0d"
+                }}>{dt.getDate()}</span>
+              </div>
+              {/* 일정 도트 */}
+              {hasEv&&(
+                <div style={{display:"flex",justifyContent:"center",gap:2,flexWrap:"wrap",minHeight:8}}>
+                  {(evByDate[date]||[]).slice(0,3).map((_,ei)=>(
+                    <div key={ei} style={{width:5,height:5,borderRadius:"50%",background:EV_COLORS[ei%EV_COLORS.length]}}/>
+                  ))}
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* 선택된 날짜 일정 목록 */}
-      {selDate&&(
-        <div style={{borderTop:"2px solid #e8450a",background:"#ffffff"}}>
-          <div style={{padding:"10px 16px 6px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#0d0d0d"}}>
-              {selDate.replace(/-/g,".")} <span style={{fontSize:10,color:"#aaa",fontWeight:400}}>{["일","월","화","수","목","금","토"][new Date(selDate).getDay()]}요일</span>
-            </div>
-            <div style={{fontSize:11,color:"#e8450a",fontWeight:700}}>{selEvents.length}개 일정</div>
+      {/* 선택 날짜 일정 */}
+      <div style={{flex:1,overflowY:"auto"}}>
+        {/* 날짜 타이틀 */}
+        <div style={{padding:"14px 18px 8px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <span style={{fontSize:15,fontWeight:800,color:"#0d0d0d"}}>
+              {fmtMD(selDate)}
+            </span>
+            <span style={{fontSize:13,color:"#aaa",marginLeft:6}}>
+              {DAY_KO[new Date(selDate).getDay()]}요일
+            </span>
+            {selDate===today&&<span style={{marginLeft:6,fontSize:10,fontWeight:700,color:"#e8450a",background:"#fff3ee",borderRadius:3,padding:"2px 6px"}}>오늘</span>}
           </div>
-          {selEvents.length===0?(
-            <div style={{padding:"14px 16px 16px",textAlign:"center",color:"#aaa",fontSize:12}}>
-              일정이 없습니다 · <span onClick={()=>{setForm({title:"",start:selDate,end:"",allDay:true,location:"",description:""});setShowForm(true);}} style={{color:"#e8450a",cursor:"pointer",fontWeight:600}}>+ 추가</span>
-            </div>
-          ):selEvents.map((ev,i)=>(
-            <div key={i} onClick={()=>setShowDetail(ev)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",borderTop:"1px solid #f5f5f5",cursor:"pointer"}}>
-              <div style={{width:3,height:36,background:EV_COLORS[i%EV_COLORS.length],borderRadius:2,flexShrink:0}}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:"#0d0d0d",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.title}</div>
-                <div style={{fontSize:10,color:"#aaa",marginTop:2}}>
-                  {ev.allDay?"종일":`${(ev.start||"").slice(11,16)} ~ ${(ev.end||"").slice(11,16)}`}
-                  {ev.location&&` · 📍${ev.location}`}
-                </div>
-              </div>
-              <span style={{color:"#ddd",fontSize:12}}>›</span>
-            </div>
-          ))}
+          <span style={{fontSize:11,color:"#e8450a",fontWeight:700}}>{selEvents.length>0?`${selEvents.length}개 일정`:""}</span>
         </div>
-      )}
 
-      {/* 일정 상세 모달 */}
+        {/* 일정 없을 때 */}
+        {!loading&&selEvents.length===0&&(
+          <div style={{textAlign:"center",padding:"40px 20px"}}>
+            <div style={{fontSize:32,marginBottom:10}}>📅</div>
+            <div style={{fontSize:13,color:"#888",marginBottom:6}}>일정이 없습니다</div>
+            <button onClick={()=>{setForm({title:"",start:selDate,end:"",allDay:true,location:"",description:""});setShowForm(true);}}
+              style={{background:"#e8450a",border:"none",borderRadius:6,padding:"8px 20px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              + 일정 추가
+            </button>
+          </div>
+        )}
+
+        {loading&&(
+          <div style={{textAlign:"center",padding:"40px 20px",color:"#aaa",fontSize:12}}>로딩 중...</div>
+        )}
+
+        {/* 일정 목록 */}
+        <div style={{padding:"0 16px 80px"}}>
+          {selEvents.map((ev,i)=>{
+            const color = EV_COLORS[i%EV_COLORS.length];
+            const timeStr = ev.allDay ? "종일" : `${(ev.start||"").slice(11,16)}${ev.end?(` ~ ${(ev.end||"").slice(11,16)}`):""}`; 
+            return(
+              <div key={i} onClick={()=>setShowDetail(ev)}
+                style={{display:"flex",gap:12,padding:"14px 16px",marginBottom:10,background:"#ffffff",borderRadius:12,border:"1px solid #f0f0f0",boxShadow:"0 1px 4px rgba(0,0,0,.05)",cursor:"pointer"}}>
+                {/* 컬러 바 */}
+                <div style={{width:4,borderRadius:2,background:color,flexShrink:0,minHeight:40,alignSelf:"stretch"}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  {/* 제목 */}
+                  <div style={{fontSize:14,fontWeight:700,color:"#0d0d0d",marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {ev.title}
+                  </div>
+                  {/* 시간 */}
+                  <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,fontWeight:600,color:color,background:color+"15",borderRadius:3,padding:"2px 7px"}}>
+                      🕐 {timeStr}
+                    </span>
+                    {ev.location&&(
+                      <span style={{fontSize:11,color:"#888"}}>📍 {ev.location}</span>
+                    )}
+                  </div>
+                  {/* 메모 */}
+                  {ev.description&&(
+                    <div style={{fontSize:11,color:"#888",marginTop:5,padding:"4px 8px",background:"#f8f8f8",borderRadius:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      📝 {ev.description}
+                    </div>
+                  )}
+                </div>
+                <span style={{color:"#ddd",fontSize:14,alignSelf:"center"}}>›</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 일정 상세 모달 (아래서 올라오는 바텀시트) */}
       {showDetail&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex",alignItems:"flex-end"}}
           onClick={()=>setShowDetail(null)}>
           <div onClick={e=>e.stopPropagation()}
-            style={{background:"#fff",borderRadius:"16px 16px 0 0",width:"100%",maxWidth:480,padding:"20px 20px 32px"}}>
-            <div style={{width:36,height:4,background:"#e8e8e8",borderRadius:2,margin:"0 auto 16px"}}/>
-            <div style={{fontSize:16,fontWeight:800,color:"#0d0d0d",marginBottom:8}}>{showDetail.title}</div>
-            <div style={{fontSize:11,color:"#888",marginBottom:4}}>
-              📅 {showDetail.allDay?"종일 일정":`${(showDetail.start||"").slice(0,16).replace("T"," ")} ~ ${(showDetail.end||"").slice(0,16).replace("T"," ")}`}
+            style={{background:"#fff",borderRadius:"18px 18px 0 0",width:"100%",padding:"0 0 32px",maxHeight:"70vh",overflowY:"auto"}}>
+            {/* 핸들 */}
+            <div style={{padding:"12px 0 0",textAlign:"center"}}>
+              <div style={{width:36,height:4,background:"#e8e8e8",borderRadius:2,display:"inline-block"}}/>
             </div>
-            {showDetail.location&&<div style={{fontSize:11,color:"#888",marginBottom:4}}>📍 {showDetail.location}</div>}
-            {showDetail.description&&<div style={{fontSize:11,color:"#888",marginBottom:12}}>📝 {showDetail.description}</div>}
-            <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={()=>setShowDetail(null)}
-                style={{flex:1,background:"#f5f5f5",border:"none",borderRadius:8,padding:"12px",color:"#555",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>닫기</button>
-              <button onClick={()=>{ if(window.confirm("삭제할까요?")) deleteEvent(showDetail.id); }}
-                style={{flex:1,background:"#cc2200",border:"none",borderRadius:8,padding:"12px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>🗑 삭제</button>
+            {/* 컬러 헤더 */}
+            <div style={{padding:"12px 20px 16px",borderBottom:"1px solid #f0f0f0"}}>
+              <div style={{fontSize:17,fontWeight:800,color:"#0d0d0d",marginBottom:6}}>{showDetail.title}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                <span style={{fontSize:11,fontWeight:600,color:"#e8450a",background:"#fff3ee",borderRadius:4,padding:"3px 9px"}}>
+                  🕐 {showDetail.allDay?"종일":`${(showDetail.start||"").slice(11,16)} ~ ${(showDetail.end||"").slice(11,16)}`}
+                </span>
+                <span style={{fontSize:11,color:"#888",background:"#f5f5f5",borderRadius:4,padding:"3px 9px"}}>
+                  📅 {(showDetail.start||"").slice(0,10)}
+                </span>
+              </div>
+            </div>
+            <div style={{padding:"14px 20px"}}>
+              {showDetail.location&&(
+                <div style={{fontSize:12,color:"#555",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                  <span>📍</span><span>{showDetail.location}</span>
+                </div>
+              )}
+              {showDetail.description&&(
+                <div style={{fontSize:12,color:"#555",marginBottom:8,padding:"10px 12px",background:"#f8f8f8",borderRadius:8}}>
+                  📝 {showDetail.description}
+                </div>
+              )}
+              <div style={{display:"flex",gap:8,marginTop:12}}>
+                <button onClick={()=>setShowDetail(null)}
+                  style={{flex:1,background:"#f5f5f5",border:"none",borderRadius:8,padding:"13px",color:"#555",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  닫기
+                </button>
+                <button onClick={()=>{ if(window.confirm("이 일정을 삭제할까요?")) deleteEvent(showDetail.id); }}
+                  style={{flex:1,background:"#cc2200",border:"none",borderRadius:8,padding:"13px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                  🗑 삭제
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -936,57 +1008,67 @@ function ScheduleScreen({apiUrl,onBack}){
 
       {/* 일정 추가 모달 */}
       {showForm&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex",alignItems:"flex-end"}}
           onClick={()=>setShowForm(false)}>
           <div onClick={e=>e.stopPropagation()}
-            style={{background:"#fff",borderRadius:"16px 16px 0 0",width:"100%",maxWidth:480,padding:"20px 20px 32px",maxHeight:"80vh",overflowY:"auto"}}>
-            <div style={{width:36,height:4,background:"#e8e8e8",borderRadius:2,margin:"0 auto 16px"}}/>
-            <div style={{fontSize:16,fontWeight:800,color:"#0d0d0d",marginBottom:16}}>일정 추가</div>
+            style={{background:"#fff",borderRadius:"18px 18px 0 0",width:"100%",padding:"0 20px 32px",maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{padding:"12px 0 0",textAlign:"center"}}>
+              <div style={{width:36,height:4,background:"#e8e8e8",borderRadius:2,display:"inline-block"}}/>
+            </div>
+            <div style={{fontSize:16,fontWeight:800,color:"#0d0d0d",margin:"10px 0 16px"}}>일정 추가</div>
 
-            <div style={{marginBottom:10}}>
-              <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>제목 *</div>
+            {/* 제목 */}
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>제목 *</div>
               <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}
-                placeholder="일정 제목 입력"
-                style={{width:"100%",height:42,border:"1px solid #e8e8e8",borderRadius:6,padding:"0 12px",fontSize:13,color:"#0d0d0d",boxSizing:"border-box",outline:"none",fontFamily:"inherit"}}/>
+                placeholder="일정 제목을 입력하세요"
+                style={{width:"100%",height:44,border:"1.5px solid #e8e8e8",borderRadius:8,padding:"0 14px",fontSize:14,color:"#0d0d0d",boxSizing:"border-box",outline:"none",fontFamily:"inherit"}}
+                autoFocus/>
             </div>
 
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-              <div style={{flex:1,fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase"}}>종일</div>
+            {/* 종일 토글 */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f5f5f5",marginBottom:12}}>
+              <span style={{fontSize:13,color:"#0d0d0d",fontWeight:600}}>종일 일정</span>
               <div onClick={()=>setForm(p=>({...p,allDay:!p.allDay}))}
-                style={{width:40,height:22,borderRadius:11,background:form.allDay?"#e8450a":"#e8e8e8",position:"relative",cursor:"pointer",transition:"background .2s"}}>
-                <div style={{position:"absolute",top:2,left:form.allDay?20:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/>
+                style={{width:44,height:24,borderRadius:12,background:form.allDay?"#e8450a":"#e8e8e8",position:"relative",cursor:"pointer",transition:"background .2s"}}>
+                <div style={{position:"absolute",top:2,left:form.allDay?22:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,.2)",transition:"left .2s"}}/>
               </div>
             </div>
 
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            {/* 날짜 */}
+            <div style={{display:"grid",gridTemplateColumns:form.allDay?"1fr":"1fr 1fr",gap:10,marginBottom:12}}>
               <div>
-                <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>시작일</div>
+                <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>시작일</div>
                 <input type="date" value={form.start} onChange={e=>setForm(p=>({...p,start:e.target.value}))}
-                  style={{width:"100%",height:38,border:"1px solid #e8e8e8",borderRadius:6,padding:"0 8px",fontSize:12,color:"#0d0d0d",boxSizing:"border-box",outline:"none"}}/>
+                  style={{width:"100%",height:40,border:"1.5px solid #e8e8e8",borderRadius:8,padding:"0 10px",fontSize:13,color:"#0d0d0d",boxSizing:"border-box",outline:"none"}}/>
               </div>
-              {!form.allDay&&<div>
-                <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>종료일</div>
-                <input type="date" value={form.end} onChange={e=>setForm(p=>({...p,end:e.target.value}))}
-                  style={{width:"100%",height:38,border:"1px solid #e8e8e8",borderRadius:6,padding:"0 8px",fontSize:12,color:"#0d0d0d",boxSizing:"border-box",outline:"none"}}/>
-              </div>}
+              {!form.allDay&&(
+                <div>
+                  <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>종료일</div>
+                  <input type="date" value={form.end} onChange={e=>setForm(p=>({...p,end:e.target.value}))}
+                    style={{width:"100%",height:40,border:"1.5px solid #e8e8e8",borderRadius:8,padding:"0 10px",fontSize:13,color:"#0d0d0d",boxSizing:"border-box",outline:"none"}}/>
+                </div>
+              )}
             </div>
 
-            <div style={{marginBottom:10}}>
-              <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>장소 (선택)</div>
+            {/* 장소 */}
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>장소 (선택)</div>
               <input value={form.location} onChange={e=>setForm(p=>({...p,location:e.target.value}))}
                 placeholder="예) 화성 13L 현장"
-                style={{width:"100%",height:38,border:"1px solid #e8e8e8",borderRadius:6,padding:"0 12px",fontSize:12,color:"#0d0d0d",boxSizing:"border-box",outline:"none",fontFamily:"inherit"}}/>
+                style={{width:"100%",height:40,border:"1.5px solid #e8e8e8",borderRadius:8,padding:"0 14px",fontSize:13,color:"#0d0d0d",boxSizing:"border-box",outline:"none",fontFamily:"inherit"}}/>
             </div>
 
-            <div style={{marginBottom:16}}>
-              <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>메모 (선택)</div>
+            {/* 메모 */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:9,fontWeight:600,color:"#888",letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>메모 (선택)</div>
               <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))}
-                placeholder="일정 메모..."
-                style={{width:"100%",height:60,border:"1px solid #e8e8e8",borderRadius:6,padding:"10px 12px",fontSize:12,color:"#0d0d0d",boxSizing:"border-box",outline:"none",resize:"none",fontFamily:"inherit"}}/>
+                placeholder="일정 관련 메모..."
+                style={{width:"100%",height:70,border:"1.5px solid #e8e8e8",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#0d0d0d",boxSizing:"border-box",outline:"none",resize:"none",fontFamily:"inherit"}}/>
             </div>
 
             <button onClick={saveEvent} disabled={saving}
-              style={{width:"100%",background:"#e8450a",border:"none",borderRadius:8,padding:"14px",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              style={{width:"100%",background:saving?"#ccc":"#e8450a",border:"none",borderRadius:10,padding:"15px",color:"#fff",fontSize:15,fontWeight:700,cursor:saving?"default":"pointer",fontFamily:"inherit",transition:"background .2s"}}>
               {saving?"저장 중...":"✅ 일정 저장"}
             </button>
           </div>
