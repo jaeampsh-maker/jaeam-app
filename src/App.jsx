@@ -1221,10 +1221,33 @@ function RequestScreen({reqs,setReqs,installed:instProp,setInstalled:setInstProp
   const allDone=(req)=>req.cuts?.length>0&&req.cuts?.every((_,i)=>isChecked(req.id,i));
   const doneCnt=(req)=>req.cuts?.filter((_,i)=>isChecked(req.id,i)).length||0;
   const toggleInstall=(reqId)=>{
-    const next={...installed,[reqId]:!installed[reqId]};
+    const wasInstalled = !!installed[reqId];
+    const next={...installed,[reqId]:!wasInstalled};
     setLocalInst(next);
     if(setInstProp)setInstProp(next);
     try{localStorage.setItem("fw_installed",JSON.stringify(next));}catch{}
+
+    // 시공완료 처리 시 → 구글 시트 시공실적에 자동 기록
+    if(!wasInstalled){
+      const req = reqs.find(r=>r.id===reqId);
+      if(req){
+        const row = {
+          action:     "addInstalled",
+          id:         req.id,
+          date:       req.date,
+          at:         new Date().toISOString(),
+          site:       req.site||req.note||"",
+          m2:         parseFloat(req.m2||0).toFixed(4),
+          boards:     req.boards||0,
+          note:       req.note||"",
+          special:    req.special||"",
+        };
+        apiPost("", row).catch(()=>{});
+      }
+    } else {
+      // 시공완료 취소 시 → 시트에서 해당 행 삭제
+      apiPost("", {action:"cancelInstalled", id:reqId}).catch(()=>{});
+    }
   };
   const isInstalled=(reqId)=>!!installed[reqId];
 
