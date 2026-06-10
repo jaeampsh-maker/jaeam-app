@@ -1172,7 +1172,12 @@ function PlanScreen({apiUrl,onBack}){
  <div key={i} style={{background:"#ffffff",border:`1px solid ${statusColor[p["상태"]]||"#e8e8e8"}44`,borderRadius:12,padding:"12px 14px",marginBottom:8}}>
  <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
  <div style={{flex:1}}>
- <div style={{fontSize:13,fontWeight:700,color:"#0d0d0d",marginBottom:2}}>{p["현장명"]}</div>
+ <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                    <span style={{fontSize:9,fontWeight:700,color:"#e8450a",background:"#fff3ee",borderRadius:3,padding:"1px 7px",letterSpacing:.3}}>
+                      📅 {String(p["날짜"]||p["date"]||"").replace(/(\d{4})(\d{2})(\d{2})/,"$1-$2-$3")}
+                    </span>
+                  </div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#0d0d0d",marginBottom:2}}>{p["현장명"]}</div>
  <div style={{fontSize:12,color:"#8a8ea8"}}>{p["작업내용"]}</div>
  {p["담당자"]&&<div style={{fontSize:11,color:"#888888",marginTop:2}}>👤 {p["담당자"]}</div>}
               {(p["메모"]||p["memo"])&&<div style={{fontSize:11,color:"#a16207",marginTop:4,padding:"4px 8px",background:"#fffbeb",borderRadius:4,border:"1px solid #fde68a"}}>📝 {p["메모"]||p["memo"]}</div>}
