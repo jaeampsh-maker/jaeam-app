@@ -1100,6 +1100,16 @@ function ScheduleScreen({apiUrl,onBack}){
 
 function PlanScreen({apiUrl,onBack}){
   const today=todayStr();
+  // 모든 날짜 형식 → "YYYY-MM-DD" 정규화
+  const normDate = (d) => {
+    if(!d) return "";
+    const s = String(d);
+    // ISO 형식: 2026-06-10T15:00:00.000Z → 앞 10자리만
+    if(s.includes("T")) return s.slice(0,10);
+    // 숫자만: 20260610 → 2026-06-10
+    if(/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+    return s.slice(0,10);
+  };
   const [plans,setPlans]=useState([]);
   const [loading,setLoading]=useState(false);
   const [showForm,setShowForm]=useState(false);
@@ -1173,8 +1183,8 @@ function PlanScreen({apiUrl,onBack}){
  <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
  <div style={{flex:1}}>
  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                    <span style={{fontSize:9,fontWeight:700,color:"#e8450a",background:"#fff3ee",borderRadius:3,padding:"1px 7px",letterSpacing:.3}}>
-                      📅 {String(p["날짜"]||p["date"]||"").replace(/(\d{4})(\d{2})(\d{2})/,"$1-$2-$3")}
+                    <span style={{fontSize:12,fontWeight:700,color:"#e8450a",background:"#fff3ee",borderRadius:4,padding:"3px 10px",letterSpacing:.3}}>
+                      📅 {normDate(p["날짜"]||p["date"])}
                     </span>
                   </div>
                   <div style={{fontSize:13,fontWeight:700,color:"#0d0d0d",marginBottom:2}}>{p["현장명"]}</div>
