@@ -706,13 +706,19 @@ function NoticeScreen({apiUrl,onBack}){
 function ScheduleScreen({apiUrl,onBack}){
   const today = todayStr();
 
+  // 날짜 문자열을 로컬 타임존으로 안전하게 파싱
+  const parseDate = (s) => {
+    const [y,m,d] = s.split("-").map(Number);
+    return new Date(y, m-1, d); // 로컬 타임존 기준
+  };
   // 이번 주 월요일 기준으로 시작
   const getWeekStart = (d) => {
-    const dt = new Date(d);
+    const dt = parseDate(d);
     const day = dt.getDay();
     const diff = day === 0 ? -6 : 1 - day; // 월요일 기준
     dt.setDate(dt.getDate() + diff);
-    return dt.toISOString().slice(0,10);
+    const y=dt.getFullYear(), m=String(dt.getMonth()+1).padStart(2,"0"), dd=String(dt.getDate()).padStart(2,"0");
+    return `${y}-${m}-${dd}`;
   };
 
   const [weekStart,  setWeekStart]  = useState(getWeekStart(today));
@@ -728,9 +734,10 @@ function ScheduleScreen({apiUrl,onBack}){
   const getWeekDays = (start) => {
     const days = [];
     for(let i=0; i<7; i++){
-      const d = new Date(start);
+      const d = parseDate(start);
       d.setDate(d.getDate() + i);
-      days.push(d.toISOString().slice(0,10));
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+      days.push(`${y}-${m}-${dd}`);
     }
     return days;
   };
@@ -738,14 +745,16 @@ function ScheduleScreen({apiUrl,onBack}){
   const weekEnd  = weekDays[6];
 
   const prevWeek = () => {
-    const d = new Date(weekStart);
+    const d = parseDate(weekStart);
     d.setDate(d.getDate() - 7);
-    setWeekStart(d.toISOString().slice(0,10));
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+    setWeekStart(`${y}-${m}-${dd}`);
   };
   const nextWeek = () => {
-    const d = new Date(weekStart);
+    const d = parseDate(weekStart);
     d.setDate(d.getDate() + 7);
-    setWeekStart(d.toISOString().slice(0,10));
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+    setWeekStart(`${y}-${m}-${dd}`);
   };
   const goToday = () => {
     setWeekStart(getWeekStart(today));
@@ -768,9 +777,20 @@ function ScheduleScreen({apiUrl,onBack}){
   };
 
   // 날짜별 이벤트 맵
+  // 이벤트 날짜를 KST(UTC+9) 기준으로 변환
+  const toKSTDate = (isoStr) => {
+    if(!isoStr) return "";
+    // 이미 날짜만 있는 경우 (allDay)
+    if(isoStr.length === 10) return isoStr;
+    // ISO 문자열: UTC+9 보정
+    const d = new Date(isoStr);
+    d.setTime(d.getTime() + 9*60*60*1000);
+    const y=d.getUTCFullYear(), m=String(d.getUTCMonth()+1).padStart(2,"0"), dd=String(d.getUTCDate()).padStart(2,"0");
+    return `${y}-${m}-${dd}`;
+  };
   const evByDate = {};
   events.forEach(ev => {
-    const d = (ev.start||"").slice(0,10);
+    const d = toKSTDate(ev.start||"");
     if(!evByDate[d]) evByDate[d] = [];
     evByDate[d].push(ev);
   });
@@ -805,7 +825,7 @@ function ScheduleScreen({apiUrl,onBack}){
 
   // 월/일 포맷
   const fmtMD = (d) => {
-    const dt = new Date(d);
+    const dt = parseDate(d);
     return `${dt.getMonth()+1}/${dt.getDate()}`;
   };
 
@@ -847,7 +867,7 @@ function ScheduleScreen({apiUrl,onBack}){
       {/* 주간 요일 슬라이드 */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"2px solid #f0f0f0",background:"#ffffff"}}>
         {weekDays.map((date,i)=>{
-          const dt       = new Date(date);
+          const dt       = parseDate(date);
           const dayNum   = dt.getDay();
           const isTod    = date === today;
           const isSel    = date === selDate;
@@ -897,7 +917,7 @@ function ScheduleScreen({apiUrl,onBack}){
               {fmtMD(selDate)}
             </span>
             <span style={{fontSize:13,color:"#aaa",marginLeft:6}}>
-              {DAY_KO[new Date(selDate).getDay()]}요일
+              {DAY_KO[parseDate(selDate).getDay()]}요일
             </span>
             {selDate===today&&<span style={{marginLeft:6,fontSize:10,fontWeight:700,color:"#e8450a",background:"#fff3ee",borderRadius:3,padding:"2px 6px"}}>오늘</span>}
           </div>
