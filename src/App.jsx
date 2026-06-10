@@ -1104,10 +1104,18 @@ function PlanScreen({apiUrl,onBack}){
   const normDate = (d) => {
     if(!d) return "";
     const s = String(d);
-    // ISO 형식: 2026-06-10T15:00:00.000Z → 앞 10자리만
-    if(s.includes("T")) return s.slice(0,10);
+    // ISO 형식: "2026-06-10T15:00:00.000Z" → KST(+9시간) 보정 후 날짜 추출
+    if(s.includes("T")) {
+      const dt = new Date(s);
+      // UTC+9 보정
+      dt.setTime(dt.getTime() + 9*60*60*1000);
+      const y = dt.getUTCFullYear();
+      const m = String(dt.getUTCMonth()+1).padStart(2,"0");
+      const day = String(dt.getUTCDate()).padStart(2,"0");
+      return y+"-"+m+"-"+day;
+    }
     // 숫자만: 20260610 → 2026-06-10
-    if(/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+    if(/^\d{8}$/.test(s)) return s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8);
     return s.slice(0,10);
   };
   const [plans,setPlans]=useState([]);
