@@ -53,7 +53,12 @@ const saveReqs = l => { try { localStorage.setItem(RK, JSON.stringify(l));
 const syncReqsToSheet = (d, url) => { if(!url) return; apiPost(url, {action:"syncReqs", reqs:d}).catch(()=>{}); };
 const syncChecksToSheet = (checks, installed, url) => { if(!url) return; apiPost(url, {action:"syncChecks", checks}).catch(()=>{}); apiPost(url, {action:"syncInstalled", installed}).catch(()=>{}); };
 const syncLogsToSheet = (logs, url) => { if(!url) return; apiPost(url, {action:"syncLogs", logs}).catch(()=>{}); }; } catch {} };
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  // KST(UTC+9) 기준 오늘 날짜
+  const d = new Date();
+  d.setTime(d.getTime() + 9*60*60*1000);
+  return d.toISOString().slice(0,10);
+};
 const fmt4 = n => typeof n==="number" ? n.toFixed(4) : "0.0000";
 const fmtDt = s => s ? s.replace("T"," ").slice(0,16) : "";
 
